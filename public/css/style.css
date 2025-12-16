@@ -1,0 +1,105 @@
+body{
+    background-color: rgb(228, 247, 247) !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+.container{
+    flex: 1;
+}
+.navbar{
+    height: 5rem;
+    background-color: aliceblue;
+}
+
+.fa-compass{
+    color: rgb(1, 0, 8);
+    font-size:4rem;
+}
+
+.nav-link{
+    color: #222222 !important;
+}
+
+
+
+/* footer */
+.f-info-links a{
+text-decoration: none;
+color: #222222;
+}
+
+.f-info-links a:hover{
+text-decoration: none;
+}
+
+.f-info-links,
+.f-info-socials,
+.f-info-brand{
+   
+    width: 100%;
+   justify-content: center;
+    display: flex;
+    align-items: center;
+}
+
+.f-info-socials i{
+    margin-right: 2rem;
+    font-size: 2em;
+     vertical-align: middle;
+}
+.f-info{
+    text-align: center;
+    height: 10rem;
+    background-color: aliceblue;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: space-evenly;
+}
+
+/* cards */
+.listing-card{
+    border:none !important;
+    margin-bottom: 2rem;
+}
+
+.card-img-top{
+    border-radius: 1rem !important;
+    width: 100%;
+    object-fit: cover !important;
+}
+.card-body{
+    padding: 0 !important;
+}
+
+.card-text p{
+    font-weight: 400;
+}
+
+.listing-link{
+    text-decoration: none;
+}
+
+
+/* for show page */
+.show-img{
+height: 30vh;
+}
+
+.btns{
+    display: flex;
+
+}
+.edit-btn{
+    background-color: rgb(10, 182, 10) !important;
+}
+.del-btn{
+    background-color: rgb(241, 50, 50) !important;
+}
+
+/* map showing */
+#map { 
+    height: 400px;
+    width: 80vw; 
+    }

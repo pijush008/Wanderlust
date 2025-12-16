@@ -1,0 +1,194 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="row">
+  <div class="col-8 offset-2">
+
+    <h2 class="mt-3"><%= listing.title %></h2>
+
+    <!-- LISTING CARD -->
+    <div class="card show-card listing-card mb-3">
+      <img 
+        src="<%= listing.image.url %>" 
+        class="card-img-top show-img" 
+        alt="listing_image"
+      >
+
+      <div class="card-body">
+        <i>Owned by – <%= listing.owner.username %></i>
+        <p class="mt-2"><%= listing.description %></p>
+        <p><%= listing.location %>, <%= listing.country %></p>
+        <p><strong>₹ <%= listing.price %></strong></p>
+      </div>
+    </div>
+
+    <!-- EDIT / DELETE (ONLY OWNER) -->
+    <% if (currUser && listing.owner._id.equals(currUser._id)) { %>
+      <div class="mb-3">
+        <a 
+          href="/listings/<%= listing._id %>/edit" 
+          class="btn btn-dark me-2"
+        >
+          Edit
+        </a>
+
+        <form 
+          method="POST" 
+          action="/listings/<%= listing._id %>?_method=DELETE" 
+          style="display:inline;"
+        >
+          <button class="btn btn-danger">Delete</button>
+        </form>
+      </div>
+    <% } %>
+
+    <hr>
+
+    <!-- ADD REVIEW (ONLY LOGGED IN USERS) -->
+    <% if (currUser) { %>
+      <div class="mb-4">
+        <h4>Leave a Review</h4>
+
+        <form 
+          action="/listings/<%= listing._id %>/reviews" 
+          method="POST" 
+          class="needs-validation" 
+          novalidate
+        >
+
+          <!-- STAR RATING -->
+          <fieldset class="starability-basic mb-3">
+            <legend>Rating:</legend>
+
+            <input type="radio" id="rate1" name="review[rating]" value="1" required />
+            <label for="rate1">1 star</label>
+
+            <input type="radio" id="rate2" name="review[rating]" value="2" />
+            <label for="rate2">2 stars</label>
+
+            <input type="radio" id="rate3" name="review[rating]" value="3" />
+            <label for="rate3">3 stars</label>
+
+            <input type="radio" id="rate4" name="review[rating]" value="4" />
+            <label for="rate4">4 stars</label>
+
+            <input type="radio" id="rate5" name="review[rating]" value="5" />
+            <label for="rate5">5 stars</label>
+          </fieldset>
+
+          <!-- COMMENT -->
+          <div class="mb-3">
+            <label class="form-label">Comment</label>
+            <textarea 
+              name="review[comment]" 
+              class="form-control" 
+              rows="4" 
+              required
+            ></textarea>
+
+            <div class="invalid-feedback">
+              Please add a comment.
+            </div>
+          </div>
+
+          <button class="btn btn-outline-dark">Submit</button>
+        </form>
+      </div>
+    <% } else { %>
+      <p>
+        <a href="/login">Login</a> to add a review.
+      </p>
+    <% } %>
+
+    <hr>
+
+    <!-- ALL REVIEWS -->
+   <% if(listing.reviews.length >0){  %>
+
+    <div class="row">
+       <h4><b> All Reviews</b></h4>
+      <% for (let review of listing.reviews) { %>
+        <div class="card col-5 me-3 mb-3">
+          <div class="card-body">
+            <h6>@<%= review.author.username %></h6>
+
+            <p 
+              class="starability-result" 
+              data-rating="<%= review.rating %>"
+            >
+              Rated: <%= review.rating %> stars
+            </p>
+
+            <p><%= review.comment %></p>
+
+            <!-- DELETE REVIEW (ONLY AUTHOR) -->
+            <% if (currUser && review.author._id.equals(currUser._id)) { %>
+              <form 
+                action="/listings/<%= listing._id %>/reviews/<%= review._id %>?_method=DELETE" 
+                method="POST"
+              >
+                <button class="btn btn-sm btn-danger">Delete</button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+
+    </div>
+    <% } %>
+
+  </div>
+   <div class="col-8 offset-2">
+        <h3>Where you'll be</h3>
+        <div id="map">
+          
+        </div>
+      </div>
+</div>
+
+
+
+
+<!-- BOOTSTRAP VALIDATION -->
+<script>
+(() => {
+  'use strict'
+  const forms = document.querySelectorAll('.needs-validation')
+  Array.from(forms).forEach(form => {
+    form.addEventListener('submit', event => {
+      if (!form.checkValidity()) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      form.classList.add('was-validated')
+    }, false)
+  })
+})()
+</script>
+
+
+<!-- map showing-->
+ <script>
+  mapboxgl.accessToken = "<%= mapToken %>";
+
+  const listing = <%- JSON.stringify(listing) %>;
+  
+  
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: listing.geometry.coordinates,   // use listing coordinates
+    zoom: 9
+  });
+
+  // marker at listing location
+ const marker=new mapboxgl.Marker({ color: "red" })
+  .setLngLat(listing.geometry.coordinates)
+  .setPopup(
+    new mapboxgl.Popup({ offset: 25 })
+      .setHTML(`<h4>${listing.title}</h4><p>Exact location provided after booking</p>`)
+  )
+  .addTo(map);
+
+
+
+</script>
