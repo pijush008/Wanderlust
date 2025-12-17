@@ -34,7 +34,7 @@ const flash = require("connect-flash");
 
 // ================= CONFIG ====================
 const PORT = process.env.PORT;
-const dbUrl = process.env.ATLASDB_URL;
+const dbUrl = process.env.MONGO_URL;
 const SESSION_SECRET = process.env.SESSION_SECRET;
 
 // ================= EJS SETUP =================
