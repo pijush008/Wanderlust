@@ -8,13 +8,17 @@
     <!-- LISTING CARD -->
     <div class="card show-card listing-card mb-3">
       <img 
-        src="<%= listing.image.url %>" 
+        src="<%= listing.image?.url || '' %>" 
         class="card-img-top show-img" 
         alt="listing_image"
       >
 
       <div class="card-body">
-        <i>Owned by – <%= listing.owner.username %></i>
+        <i>
+          Owned by –
+          <%= listing.owner ? listing.owner.username : "Unknown" %>
+        </i>
+
         <p class="mt-2"><%= listing.description %></p>
         <p><%= listing.location %>, <%= listing.country %></p>
         <p><strong>₹ <%= listing.price %></strong></p>
@@ -22,7 +26,7 @@
     </div>
 
     <!-- EDIT / DELETE (ONLY OWNER) -->
-    <% if (currUser && listing.owner._id.equals(currUser._id)) { %>
+    <% if (currUser && listing.owner && listing.owner._id.equals(currUser._id)) { %>
       <div class="mb-3">
         <a 
           href="/listings/<%= listing._id %>/edit" 
@@ -102,51 +106,50 @@
     <hr>
 
     <!-- ALL REVIEWS -->
-   <% if(listing.reviews.length >0){  %>
+    <% if (listing.reviews && listing.reviews.length > 0) { %>
+      <div class="row">
+        <h4><b>All Reviews</b></h4>
 
-    <div class="row">
-       <h4><b> All Reviews</b></h4>
-      <% for (let review of listing.reviews) { %>
-        <div class="card col-5 me-3 mb-3">
-          <div class="card-body">
-            <h6>@<%= review.author.username %></h6>
+        <% for (let review of listing.reviews) { %>
+          <div class="card col-5 me-3 mb-3">
+            <div class="card-body">
 
-            <p 
-              class="starability-result" 
-              data-rating="<%= review.rating %>"
-            >
-              Rated: <%= review.rating %> stars
-            </p>
+              <h6>
+                @<%= review.author ? review.author.username : "Deleted User" %>
+              </h6>
 
-            <p><%= review.comment %></p>
-
-            <!-- DELETE REVIEW (ONLY AUTHOR) -->
-            <% if (currUser && review.author._id.equals(currUser._id)) { %>
-              <form 
-                action="/listings/<%= listing._id %>/reviews/<%= review._id %>?_method=DELETE" 
-                method="POST"
+              <p 
+                class="starability-result" 
+                data-rating="<%= review.rating %>"
               >
-                <button class="btn btn-sm btn-danger">Delete</button>
-              </form>
-            <% } %>
-          </div>
-        </div>
-      <% } %>
+                Rated: <%= review.rating %> stars
+              </p>
 
-    </div>
+              <p><%= review.comment %></p>
+
+              <!-- DELETE REVIEW (ONLY AUTHOR) -->
+              <% if (currUser && review.author && review.author._id.equals(currUser._id)) { %>
+                <form 
+                  action="/listings/<%= listing._id %>/reviews/<%= review._id %>?_method=DELETE" 
+                  method="POST"
+                >
+                  <button class="btn btn-sm btn-danger">Delete</button>
+                </form>
+              <% } %>
+
+            </div>
+          </div>
+        <% } %>
+      </div>
     <% } %>
 
   </div>
-   <div class="col-8 offset-2">
-        <h3>Where you'll be</h3>
-        <div id="map">
-          
-        </div>
-      </div>
+
+  <div class="col-8 offset-2 mt-4">
+    <h3>Where you'll be</h3>
+    <div id="map" style="height: 300px;"></div>
+  </div>
 </div>
-
-
-
 
 <!-- BOOTSTRAP VALIDATION -->
 <script>
@@ -165,30 +168,26 @@
 })()
 </script>
 
-
-<!-- map showing-->
- <script>
+<!-- MAP -->
+<script>
   mapboxgl.accessToken = "<%= mapToken %>";
 
-  const listing = <%- JSON.stringify(listing) %>;
-  
-  
+  const listingData = <%- JSON.stringify(listing) %>;
+
+  const coordinates = listingData.geometry?.coordinates || [77.1025, 28.7041];
+
   const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/streets-v12',
-    center: listing.geometry.coordinates,   // use listing coordinates
+    center: coordinates,
     zoom: 9
   });
 
-  // marker at listing location
- const marker=new mapboxgl.Marker({ color: "red" })
-  .setLngLat(listing.geometry.coordinates)
-  .setPopup(
-    new mapboxgl.Popup({ offset: 15 })
-      .setHTML(`<h4>${listing.title}</h4><p>Exact location provided after booking</p>`)
-  )
-  .addTo(map);
-
-
-
+  new mapboxgl.Marker({ color: "red" })
+    .setLngLat(coordinates)
+    .setPopup(
+      new mapboxgl.Popup({ offset: 15 })
+        .setHTML(`<h4>${listingData.title}</h4><p>Exact location provided after booking</p>`)
+    )
+    .addTo(map);
 </script>
