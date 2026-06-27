@@ -7,11 +7,20 @@
 
     <!-- LISTING CARD -->
     <div class="card show-card listing-card mb-3">
-      <img 
-        src="<%= listing.image?.url || '' %>" 
-        class="card-img-top show-img" 
-        alt="listing_image"
-      >
+      <div class="img-lazy-wrapper show-img-wrapper">
+        <img 
+          src="<%= optimizedImage.placeholder %>"
+          data-src="<%= optimizedImage.src %>"
+          <% if (optimizedImage.srcset) { %>
+            data-srcset="<%= optimizedImage.srcset %>"
+            sizes="<%= optimizedImage.sizes %>"
+          <% } %>
+          class="card-img-top show-img lazy-img"
+          alt="<%= listing.title %>"
+          loading="lazy"
+          decoding="async"
+        >
+      </div>
 
       <div class="card-body">
         <i>
@@ -21,7 +30,46 @@
 
         <p class="mt-2"><%= listing.description %></p>
         <p><%= listing.location %>, <%= listing.country %></p>
-        <p><strong>₹ <%= listing.price %></strong></p>
+        <p><strong>Base Price: ₹ <%= listing.price %></strong></p>
+      </div>
+    </div>
+
+    <!-- DYNAMIC PRICING WIDGET -->
+    <div class="pricing-widget card mb-3" id="pricingWidget">
+      <div class="card-body">
+        <h5 class="card-title">
+          <i class="fa-solid fa-chart-line me-2"></i>Dynamic Pricing
+        </h5>
+        <div class="pricing-loading text-center py-3">
+          <div class="spinner-border spinner-border-sm" role="status"></div>
+          <span class="ms-2">Calculating today's price...</span>
+        </div>
+        <div class="pricing-content" style="display:none;">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <span class="text-muted">Today's Price</span>
+              <h3 class="mb-0" id="dynamicFinalPrice">—</h3>
+            </div>
+            <div class="text-end">
+              <span class="badge" id="pricingStatus">—</span>
+              <div class="text-muted small" id="pricingMultiplier"></div>
+            </div>
+          </div>
+
+          <!-- Breakdown -->
+          <div class="pricing-breakdown">
+            <table class="table table-sm table-borderless mb-0">
+              <tbody id="breakdownTable">
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 7-Day Forecast Mini -->
+          <div class="mt-3">
+            <small class="text-muted fw-bold">7-Day Forecast</small>
+            <div class="d-flex gap-1 mt-1" id="forecastMini"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -42,6 +90,65 @@
         >
           <button class="btn btn-danger">Delete</button>
         </form>
+      </div>
+    <% } %>
+
+    <!-- BOOKING FORM -->
+    <% if (currUser && (!listing.owner || !listing.owner._id.equals(currUser._id))) { %>
+      <div class="card booking-form-card mb-3" id="bookingCard">
+        <div class="card-body">
+          <h5 class="card-title">
+            <i class="fa-solid fa-calendar-plus me-2"></i>Book This Place
+          </h5>
+
+          <form action="/listings/<%= listing._id %>/book" method="POST" id="bookingForm">
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small">Check-in</label>
+                <input type="date" class="form-control" name="checkIn" id="bookingCheckIn" required
+                  min="<%= new Date().toISOString().split('T')[0] %>">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Check-out</label>
+                <input type="date" class="form-control" name="checkOut" id="bookingCheckOut" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small">Guests</label>
+              <select class="form-select" name="guests">
+                <option value="1">1 guest</option>
+                <option value="2">2 guests</option>
+                <option value="3">3 guests</option>
+                <option value="4">4 guests</option>
+                <option value="5">5+ guests</option>
+              </select>
+            </div>
+
+            <!-- Availability Status -->
+            <div id="availabilityStatus" class="mb-3" style="display:none;"></div>
+
+            <!-- Price Preview -->
+            <div id="bookingPricePreview" class="mb-3" style="display:none;">
+              <div class="d-flex justify-content-between">
+                <span id="pricePerNight"></span>
+                <span id="priceTotal" class="fw-bold"></span>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-danger w-100" id="bookBtn" disabled>
+              <i class="fa-solid fa-lock me-1"></i> Reserve
+            </button>
+            <small class="text-muted d-block text-center mt-2">You won't be charged yet</small>
+          </form>
+        </div>
+      </div>
+    <% } else if (!currUser) { %>
+      <div class="card mb-3">
+        <div class="card-body text-center">
+          <p class="mb-2">Want to book this place?</p>
+          <a href="/login" class="btn btn-outline-danger">Log in to Book</a>
+        </div>
       </div>
     <% } %>
 
@@ -147,7 +254,19 @@
 
   <div class="col-8 offset-2 mt-4">
     <h3>Where you'll be</h3>
-    <div id="map" style="height: 300px;"></div>
+    <div id="map" style="height: 400px; border-radius: 12px;"></div>
+
+    <!-- NEARBY POI Section -->
+    <div class="nearby-poi mt-4" id="nearbyPOI">
+      <h5><i class="fa-solid fa-map-pin me-2"></i>What's Nearby</h5>
+      <div class="poi-loading text-center py-3">
+        <div class="spinner-border spinner-border-sm"></div>
+        <span class="ms-2">Loading nearby places...</span>
+      </div>
+      <div class="poi-content" style="display:none;">
+        <div class="row g-3" id="poiGrid"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -180,9 +299,10 @@
     container: 'map',
     style: 'mapbox://styles/mapbox/streets-v12',
     center: coordinates,
-    zoom: 9
+    zoom: 12
   });
 
+  // Listing marker
   new mapboxgl.Marker({ color: "red" })
     .setLngLat(coordinates)
     .setPopup(
@@ -190,4 +310,382 @@
         .setHTML(`<h4>${listingData.title}</h4><p>Exact location provided after booking</p>`)
     )
     .addTo(map);
+
+  // Add navigation controls
+  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+  // ---- LOAD NEARBY POI AND ADD TO MAP ----
+  fetch("/api/maps/<%= listing._id %>/poi")
+    .then(r => r.json())
+    .then(data => {
+      document.querySelector(".poi-loading").style.display = "none";
+      document.querySelector(".poi-content").style.display = "block";
+
+      const poi = data.poi;
+      const poiGrid = document.getElementById("poiGrid");
+      let html = "";
+
+      const icons = {
+        restaurants: { icon: "fa-utensils", color: "#e74c3c", label: "Restaurants" },
+        hospitals: { icon: "fa-hospital", color: "#3498db", label: "Hospitals" },
+        railway_stations: { icon: "fa-train", color: "#2c3e50", label: "Railway Stations" },
+        tourist_attractions: { icon: "fa-camera", color: "#27ae60", label: "Attractions" },
+      };
+
+      const markerColors = { restaurants: "#e74c3c", hospitals: "#3498db", railway_stations: "#2c3e50", tourist_attractions: "#27ae60" };
+
+      for (const [category, config] of Object.entries(icons)) {
+        const items = poi[category] || [];
+        if (items.length === 0) continue;
+
+        html += '<div class="col-md-6"><div class="poi-category">';
+        html += '<h6 class="poi-category-title"><i class="fa-solid ' + config.icon + '" style="color:' + config.color + '"></i> ' + config.label + '</h6>';
+        html += '<ul class="poi-list">';
+
+        items.slice(0, 4).forEach(item => {
+          html += '<li class="poi-item">';
+          html += '<span class="poi-name">' + item.name + '</span>';
+          if (item.distance != null) html += '<span class="poi-distance">' + item.distance + ' km</span>';
+          if (item.rating) html += '<span class="poi-rating">★ ' + item.rating + '</span>';
+          if (item.cuisine) html += '<small class="text-muted d-block">' + item.cuisine + '</small>';
+          if (item.phone) html += '<small class="text-muted d-block">' + item.phone + '</small>';
+          html += '</li>';
+
+          // Add marker to map
+          if (item.lat && item.lng) {
+            const el = document.createElement('div');
+            el.className = 'poi-marker';
+            el.style.cssText = 'width:12px;height:12px;border-radius:50%;background:' + markerColors[category] + ';border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
+
+            new mapboxgl.Marker(el)
+              .setLngLat([item.lng, item.lat])
+              .setPopup(new mapboxgl.Popup({ offset: 10 }).setHTML(
+                '<strong>' + item.name + '</strong>' +
+                (item.rating ? '<br>★ ' + item.rating : '') +
+                (item.distance != null ? '<br>' + item.distance + ' km away' : '')
+              ))
+              .addTo(map);
+          }
+        });
+
+        html += '</ul></div></div>';
+      }
+
+      poiGrid.innerHTML = html || '<p class="text-muted">No nearby places data available for this location.</p>';
+    })
+    .catch(() => {
+      document.querySelector(".poi-loading").innerHTML = '<span class="text-muted">Could not load nearby places</span>';
+    });
+</script>
+
+<!-- DYNAMIC PRICING SCRIPT -->
+<script>
+(function() {
+  const listingId = "<%= listing._id %>";
+
+  // Fetch pricing breakdown
+  fetch("/api/pricing/" + listingId + "/breakdown")
+    .then(res => res.json())
+    .then(data => {
+      document.querySelector(".pricing-loading").style.display = "none";
+      document.querySelector(".pricing-content").style.display = "block";
+
+      // Final price
+      document.getElementById("dynamicFinalPrice").textContent = 
+        "₹" + Number(data.finalPrice).toLocaleString("en-IN");
+
+      // Status badge
+      const statusEl = document.getElementById("pricingStatus");
+      const statusMap = {
+        surge: { text: "⚡ Surge Pricing", class: "bg-danger" },
+        high: { text: "📈 High Demand", class: "bg-warning text-dark" },
+        normal: { text: "✓ Normal", class: "bg-success" },
+        low: { text: "📉 Low Season", class: "bg-info" },
+        discount: { text: "🏷️ Discounted", class: "bg-primary" },
+      };
+      const s = statusMap[data.status] || statusMap.normal;
+      statusEl.textContent = s.text;
+      statusEl.className = "badge " + s.class;
+
+      // Multiplier
+      const pctText = data.percentChange >= 0 
+        ? "+" + data.percentChange + "% from base" 
+        : data.percentChange + "% from base";
+      document.getElementById("pricingMultiplier").textContent = pctText;
+
+      // Breakdown table
+      const breakdown = data.breakdown;
+      let rows = "";
+      rows += buildRow("Base Price", "₹" + Number(data.basePrice).toLocaleString("en-IN"), "");
+      rows += buildRow(breakdown.weekend.label, "×" + breakdown.weekend.multiplier, breakdown.weekend.multiplier > 1 ? "text-danger" : "");
+      if (breakdown.festival.name) {
+        rows += buildRow("🎉 " + breakdown.festival.name, "×" + breakdown.festival.multiplier, "text-danger fw-bold");
+      }
+      rows += buildRow("Season (" + breakdown.season.label + ")", "×" + breakdown.season.multiplier, breakdown.season.multiplier > 1.2 ? "text-warning" : "");
+      rows += buildRow("Demand", "×" + breakdown.demand.multiplier, "");
+      rows += buildRow("Occupancy", "×" + breakdown.occupancy.multiplier, "");
+      rows += '<tr class="border-top"><td><strong>Final</strong></td><td class="text-end"><strong>₹' + Number(data.finalPrice).toLocaleString("en-IN") + '</strong></td></tr>';
+
+      document.getElementById("breakdownTable").innerHTML = rows;
+    })
+    .catch(err => {
+      document.querySelector(".pricing-loading").innerHTML = 
+        '<span class="text-muted">Pricing unavailable</span>';
+      console.error("Pricing error:", err);
+    });
+
+  // Fetch 7-day forecast
+  fetch("/api/pricing/" + listingId + "/analytics")
+    .then(res => res.json())
+    .then(data => {
+      const container = document.getElementById("forecastMini");
+      let html = "";
+      data.forecast.forEach(day => {
+        const colorClass = day.status === "surge" ? "forecast-surge" 
+          : day.status === "high" ? "forecast-high"
+          : day.status === "discount" ? "forecast-discount" 
+          : "forecast-normal";
+        html += '<div class="forecast-day ' + colorClass + '">';
+        html += '  <div class="forecast-day-label">' + day.day.slice(0, 3) + '</div>';
+        html += '  <div class="forecast-day-price">₹' + (day.price / 1000).toFixed(1) + 'k</div>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    })
+    .catch(() => {});
+
+  function buildRow(label, value, cls) {
+    return '<tr><td>' + label + '</td><td class="text-end ' + cls + '">' + value + '</td></tr>';
+  }
+})();
+</script>
+
+<!-- BOOKING AVAILABILITY CHECK SCRIPT -->
+<script>
+(function() {
+  const listingId = "<%= listing._id %>";
+  const checkInEl = document.getElementById("bookingCheckIn");
+  const checkOutEl = document.getElementById("bookingCheckOut");
+  const statusEl = document.getElementById("availabilityStatus");
+  const previewEl = document.getElementById("bookingPricePreview");
+  const bookBtn = document.getElementById("bookBtn");
+
+  if (!checkInEl || !checkOutEl) return; // Not logged in or is owner
+
+  let debounceTimer;
+
+  // Set min check-out based on check-in
+  checkInEl.addEventListener("change", function() {
+    const nextDay = new Date(this.value);
+    nextDay.setDate(nextDay.getDate() + 1);
+    checkOutEl.min = nextDay.toISOString().split("T")[0];
+    if (checkOutEl.value && new Date(checkOutEl.value) <= new Date(this.value)) {
+      checkOutEl.value = nextDay.toISOString().split("T")[0];
+    }
+    checkAvailability();
+  });
+
+  checkOutEl.addEventListener("change", checkAvailability);
+
+  function checkAvailability() {
+    const checkIn = checkInEl.value;
+    const checkOut = checkOutEl.value;
+
+    if (!checkIn || !checkOut) {
+      bookBtn.disabled = true;
+      statusEl.style.display = "none";
+      previewEl.style.display = "none";
+      return;
+    }
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      statusEl.style.display = "block";
+      statusEl.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Checking availability...</div>';
+      bookBtn.disabled = true;
+
+      fetch("/api/bookings/" + listingId + "/availability?checkIn=" + checkIn + "&checkOut=" + checkOut)
+        .then(res => res.json())
+        .then(data => {
+          if (data.available) {
+            statusEl.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="fa-solid fa-check-circle me-1"></i> Available for these dates!</div>';
+            bookBtn.disabled = false;
+            bookBtn.innerHTML = '<i class="fa-solid fa-lock me-1"></i> Reserve · ₹' + Number(data.pricing.totalAmount).toLocaleString("en-IN");
+
+            // Show price preview
+            previewEl.style.display = "block";
+            document.getElementById("pricePerNight").textContent = 
+              "₹" + Number(data.pricing.pricePerNight).toLocaleString("en-IN") + " × " + data.pricing.nights + " nights";
+            document.getElementById("priceTotal").textContent = 
+              "₹" + Number(data.pricing.totalAmount).toLocaleString("en-IN");
+          } else {
+            statusEl.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="fa-solid fa-circle-xmark me-1"></i> ' + (data.message || "Not available") + '</div>';
+            bookBtn.disabled = true;
+            bookBtn.innerHTML = '<i class="fa-solid fa-lock me-1"></i> Not Available';
+            previewEl.style.display = "none";
+          }
+        })
+        .catch(() => {
+          statusEl.innerHTML = '<div class="alert alert-warning py-2 mb-0">Could not check availability</div>';
+          bookBtn.disabled = true;
+        });
+    }, 300);
+  }
+
+  // Prevent double-submit
+  const form = document.getElementById("bookingForm");
+  if (form) {
+    form.addEventListener("submit", function() {
+      bookBtn.disabled = true;
+      bookBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div> Securing your booking...';
+    });
+  }
+})();
+</script>
+
+<!-- LAZY LOADING for Show Page -->
+<script>
+(function() {
+  const lazyImages = document.querySelectorAll(".lazy-img");
+  lazyImages.forEach((img) => {
+    const src = img.dataset.src;
+    const srcset = img.dataset.srcset;
+    if (src) {
+      const preloader = new Image();
+      preloader.onload = function() {
+        img.src = src;
+        if (srcset) img.srcset = srcset;
+        img.classList.add("lazy-loaded");
+        img.classList.remove("lazy-img");
+      };
+      preloader.src = src;
+    }
+  });
+})();
+</script>
+
+<!-- REALTIME AVAILABILITY (WebSocket) -->
+<script>
+(function() {
+  const listingId = "<%= listing._id %>";
+  
+  // Connect to WebSocket
+  if (typeof io === "undefined") return;
+  const socket = io();
+
+  // Join this listing's room
+  socket.on("connect", () => {
+    socket.emit("join:listing", listingId);
+  });
+
+  // ---- LIVE VIEWER COUNT ----
+  socket.on("viewers:count", (data) => {
+    if (data.listingId !== listingId) return;
+    
+    let badge = document.getElementById("viewerCount");
+    if (!badge) {
+      // Create viewer badge
+      badge = document.createElement("div");
+      badge.id = "viewerCount";
+      badge.className = "viewer-count-badge";
+      const cardBody = document.querySelector(".show-card .card-body");
+      if (cardBody) cardBody.prepend(badge);
+    }
+    
+    if (data.count > 1) {
+      badge.innerHTML = '<i class="fa-solid fa-eye me-1"></i>' + data.count + ' people viewing';
+      badge.style.display = "inline-block";
+    } else {
+      badge.style.display = "none";
+    }
+  });
+
+  // ---- AVAILABILITY UPDATED (someone booked/cancelled) ----
+  socket.on("availability:updated", (data) => {
+    if (data.listingId !== listingId) return;
+
+    const isBooked = data.type === "booking_confirmed";
+    
+    // Show realtime notification
+    showRealtimeNotification(
+      isBooked 
+        ? "🔒 Dates just booked: " + formatDateRange(data.checkIn, data.checkOut)
+        : "🔓 Dates now available: " + formatDateRange(data.checkIn, data.checkOut),
+      isBooked ? "warning" : "success"
+    );
+
+    // Re-check availability if user has dates selected
+    const checkInEl = document.getElementById("bookingCheckIn");
+    const checkOutEl = document.getElementById("bookingCheckOut");
+    if (checkInEl && checkOutEl && checkInEl.value && checkOutEl.value) {
+      // Trigger re-check
+      checkOutEl.dispatchEvent(new Event("change"));
+    }
+  });
+
+  // ---- BOOKING IN PROGRESS (someone else is booking) ----
+  socket.on("booking:conflict", (data) => {
+    if (data.listingId !== listingId) return;
+
+    showRealtimeNotification(
+      "⚡ Someone is booking " + formatDateRange(data.checkIn, data.checkOut) + " right now!",
+      "danger"
+    );
+  });
+
+  // ---- PRICING UPDATED ----
+  socket.on("pricing:updated", (data) => {
+    if (data.listingId !== listingId) return;
+
+    showRealtimeNotification("💰 Price updated for this listing", "info");
+    
+    // Refresh pricing widget
+    const priceEl = document.getElementById("dynamicFinalPrice");
+    if (priceEl && data.finalPrice) {
+      priceEl.textContent = "₹" + Number(data.finalPrice).toLocaleString("en-IN");
+    }
+  });
+
+  // ---- HELPER: Show notification toast ----
+  function showRealtimeNotification(message, type) {
+    let container = document.getElementById("realtimeNotifications");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "realtimeNotifications";
+      container.className = "realtime-notifications";
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = "realtime-toast realtime-toast-" + type;
+    toast.innerHTML = '<span>' + message + '</span><button class="realtime-toast-close">&times;</button>';
+    container.appendChild(toast);
+
+    // Auto-dismiss after 6 seconds
+    setTimeout(() => {
+      toast.classList.add("realtime-toast-exit");
+      setTimeout(() => toast.remove(), 300);
+    }, 6000);
+
+    // Manual dismiss
+    toast.querySelector(".realtime-toast-close").addEventListener("click", () => {
+      toast.classList.add("realtime-toast-exit");
+      setTimeout(() => toast.remove(), 300);
+    });
+  }
+
+  // ---- HELPER: Format date range ----
+  function formatDateRange(checkIn, checkOut) {
+    const opts = { day: "numeric", month: "short" };
+    const start = new Date(checkIn).toLocaleDateString("en-IN", opts);
+    const end = new Date(checkOut).toLocaleDateString("en-IN", opts);
+    return start + " – " + end;
+  }
+
+  // Cleanup on page leave
+  window.addEventListener("beforeunload", () => {
+    socket.emit("leave:listing", listingId);
+    socket.disconnect();
+  });
+})();
 </script>

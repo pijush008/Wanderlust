@@ -1,0 +1,116 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="trip-planner-page">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+
+      <!-- Header -->
+      <div class="text-center mb-4 mt-3">
+        <h2><i class="fa-solid fa-route me-2"></i>Smart Trip Planner</h2>
+        <p class="text-muted">Tell us where you're going — we'll plan the perfect trip</p>
+      </div>
+
+      <!-- Planner Form -->
+      <div class="card trip-form-card">
+        <div class="card-body p-4">
+          <form action="/trips/plan" method="POST" id="tripForm">
+
+            <!-- From / To -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold"><i class="fa-solid fa-plane-departure me-1"></i>From</label>
+                <input type="text" name="from" class="form-control" placeholder="e.g. Kolkata, Delhi, Mumbai" required list="originsList">
+                <datalist id="originsList">
+                  <% origins.forEach(o => { %><option value="<%= o %>"><% }) %>
+                </datalist>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold"><i class="fa-solid fa-plane-arrival me-1"></i>To</label>
+                <input type="text" name="to" class="form-control" placeholder="e.g. Goa, Manali, Jaipur" required list="destList">
+                <datalist id="destList">
+                  <% destinations.forEach(d => { %><option value="<%= d %>"><% }) %>
+                </datalist>
+              </div>
+            </div>
+
+            <!-- Budget / Days -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold"><i class="fa-solid fa-indian-rupee-sign me-1"></i>Budget (₹)</label>
+                <input type="number" name="budget" class="form-control" placeholder="20000" min="3000" max="500000" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold"><i class="fa-solid fa-calendar-days me-1"></i>Days</label>
+                <select name="days" class="form-select" required>
+                  <option value="2">2 Days</option>
+                  <option value="3" selected>3 Days</option>
+                  <option value="4">4 Days</option>
+                  <option value="5">5 Days</option>
+                  <option value="7">7 Days</option>
+                  <option value="10">10 Days</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold"><i class="fa-solid fa-users me-1"></i>Travelers</label>
+                <select name="travelers" class="form-select">
+                  <option value="1">1 Person</option>
+                  <option value="2" selected>2 People</option>
+                  <option value="3">3 People</option>
+                  <option value="4">4 People</option>
+                  <option value="5">5+ People</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Trip Type -->
+            <div class="mb-4">
+              <label class="form-label fw-bold">Trip Type</label>
+              <div class="trip-type-selector">
+                <label class="trip-type-option">
+                  <input type="radio" name="tripType" value="friends" checked>
+                  <div class="trip-type-card">
+                    <i class="fa-solid fa-user-group"></i>
+                    <span>Friends</span>
+                  </div>
+                </label>
+                <label class="trip-type-option">
+                  <input type="radio" name="tripType" value="couple">
+                  <div class="trip-type-card">
+                    <i class="fa-solid fa-heart"></i>
+                    <span>Couple</span>
+                  </div>
+                </label>
+                <label class="trip-type-option">
+                  <input type="radio" name="tripType" value="family">
+                  <div class="trip-type-card">
+                    <i class="fa-solid fa-people-roof"></i>
+                    <span>Family</span>
+                  </div>
+                </label>
+                <label class="trip-type-option">
+                  <input type="radio" name="tripType" value="solo">
+                  <div class="trip-type-card">
+                    <i class="fa-solid fa-person-hiking"></i>
+                    <span>Solo</span>
+                  </div>
+                </label>
+                <label class="trip-type-option">
+                  <input type="radio" name="tripType" value="adventure">
+                  <div class="trip-type-card">
+                    <i class="fa-solid fa-mountain-sun"></i>
+                    <span>Adventure</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-danger btn-lg w-100">
+              <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate My Trip Plan
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

@@ -6,6 +6,8 @@ if (process.env.NODE_ENV !== "production") {
 // ================= BASIC SETUP ===============
 const express = require("express");
 const app = express();
+const http = require("http");
+const server = http.createServer(app);
 const mongoose = require("mongoose");
 const path = require("path");
 const methodOverride = require("method-override");
@@ -24,6 +26,16 @@ const ExpressError = require("./utils/ExpressError");
 const listingRouter = require("./routes/listing");
 const reviewRouter = require("./routes/review");
 const userRouter = require("./routes/user");
+const searchRouter = require("./routes/search");
+const pricingRouter = require("./routes/pricing");
+const bookingRouter = require("./routes/booking");
+const cacheRouter = require("./routes/cache");
+const filterRouter = require("./routes/filter");
+const tripRouter = require("./routes/tripPlanner");
+const recommendationRouter = require("./routes/recommendation");
+const waitlistRouter = require("./routes/waitlist");
+const mapsRouter = require("./routes/maps");
+const aiRouter = require("./routes/ai");
 
 // ================= AUTH & SESSION ============
 const session = require("express-session");
@@ -44,8 +56,18 @@ app.set("views", path.join(__dirname, "views"));
 
 // ================= MIDDLEWARE ================
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(methodOverride("_method"));
-app.use(express.static(path.join(__dirname, "public")));
+
+// CDN & Cache Control
+const { cacheControlMiddleware, cdnLocals } = require("./utils/cdn");
+app.use(cdnLocals); // Makes assetUrl() available in all EJS templates
+app.use(cacheControlMiddleware); // Aggressive caching for static files
+app.use(express.static(path.join(__dirname, "public"), {
+  maxAge: process.env.NODE_ENV === "production" ? "30d" : 0,
+  etag: true,
+  lastModified: true,
+}));
 
 // ================= SESSION STORE =============
 const store = MongoStore.create({
@@ -101,23 +123,49 @@ mongoose
   .then(() => console.log(" MongoDB is Connected"))
   .catch((err) => console.log(" MongoDB Error:", err));
 
+// ================= CACHE LAYER ==================
+const { cache } = require("./utils/cache");
+cache.initialize(process.env.REDIS_URL || null);
+
+// ================= AI SERVICE ==================
+const { initializeAI } = require("./utils/aiService");
+initializeAI();
+
+// ================= REALTIME (WebSocket) ==================
+const { initializeSocket } = require("./utils/realtime");
+initializeSocket(server);
+
+// ================= WORKER QUEUES ==================
+const { initializeQueues, setupScheduledJobs } = require("./utils/workerQueue");
+initializeQueues();
+setupScheduledJobs();
+
+// ================= HEALTH CHECK & GRACEFUL SHUTDOWN ==================
+const { setupGracefulShutdown, healthRoutes } = require("./utils/healthCheck");
+setupGracefulShutdown(server);
+
 // ================= ROUTES ====================
 app.get("/", (req, res) => {
   return res.redirect("/listings");
 });
 
-// ================= GLOBAL VARIABLES ==========
-app.use((req, res, next) => {
-  res.locals.currUser = req.user || null;
-  res.locals.success = req.flash("success");
-  res.locals.error = req.flash("error");
-  next();
-});
-
-
 app.use("/", userRouter);
+app.use("/", bookingRouter);
+app.use("/search", searchRouter);
+app.use("/filter", filterRouter);
+app.use("/trips", tripRouter);
+app.use("/recommendations", recommendationRouter);
+app.use("/api/waitlist", waitlistRouter);
+app.use("/waitlist", waitlistRouter);
+app.use("/api/maps", mapsRouter);
+app.use("/ai", aiRouter);
+app.use("/api/pricing", pricingRouter);
+app.use("/api/cache", cacheRouter);
 app.use("/listings", listingRouter);
 app.use("/listings/:id/reviews", reviewRouter);
+
+// Health check routes (no auth, no session needed)
+healthRoutes(app);
 
 // ================= 404 HANDLER ===============
 app.use((req, res, next) => {
@@ -135,6 +183,6 @@ app.use((err, req, res, next) => {
 });
 
 // ================= SERVER ====================
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(` Server is running on port ${PORT}`);
 });

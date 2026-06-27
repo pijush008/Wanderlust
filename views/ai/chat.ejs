@@ -1,0 +1,146 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="ai-chat-page">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+
+      <!-- Header -->
+      <div class="text-center mt-3 mb-3">
+        <h3><i class="fa-solid fa-robot me-2"></i>WanderBot — AI Travel Assistant</h3>
+        <p class="text-muted">Ask me anything about travel, destinations, stays, or trip planning</p>
+      </div>
+
+      <!-- Chat Container -->
+      <div class="chat-container" id="chatContainer">
+        <div class="chat-messages" id="chatMessages">
+          <!-- Welcome message -->
+          <div class="chat-msg bot-msg">
+            <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+            <div class="msg-bubble">
+              Hi! I'm WanderBot 🌍 your AI travel assistant. I can help you:
+              <ul class="mt-2 mb-0">
+                <li>Plan trips across India</li>
+                <li>Find the perfect stay for your budget</li>
+                <li>Suggest destinations & activities</li>
+                <li>Answer travel questions</li>
+              </ul>
+              What are you looking for?
+            </div>
+          </div>
+        </div>
+
+        <!-- Input -->
+        <div class="chat-input-area">
+          <form id="chatForm" class="d-flex gap-2">
+            <input
+              type="text"
+              id="chatInput"
+              class="form-control"
+              placeholder="Ask me anything... e.g. 'Best beach destination under ₹2000/night'"
+              autocomplete="off"
+            >
+            <button type="submit" class="btn btn-danger" id="sendBtn">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </form>
+          <div class="chat-suggestions mt-2">
+            <button class="suggestion-chip" data-msg="Suggest a 3-day trip to Goa for friends under ₹15000">Goa trip plan</button>
+            <button class="suggestion-chip" data-msg="Best mountain stays under ₹2000 per night">Mountain stays</button>
+            <button class="suggestion-chip" data-msg="Compare Manali vs Rishikesh for adventure trip">Manali vs Rishikesh</button>
+            <button class="suggestion-chip" data-msg="Family-friendly beach destination in India">Family beach trip</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById("chatForm");
+  const input = document.getElementById("chatInput");
+  const messages = document.getElementById("chatMessages");
+  const sendBtn = document.getElementById("sendBtn");
+
+  // Send message
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const msg = input.value.trim();
+    if (!msg) return;
+    sendMessage(msg);
+    input.value = "";
+  });
+
+  // Suggestion chips
+  document.querySelectorAll(".suggestion-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      sendMessage(chip.dataset.msg);
+    });
+  });
+
+  async function sendMessage(msg) {
+    // Add user message
+    appendMessage(msg, "user");
+    sendBtn.disabled = true;
+    input.disabled = true;
+
+    // Show typing indicator
+    const typingId = showTyping();
+
+    try {
+      const res = await fetch("/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+      const data = await res.json();
+
+      removeTyping(typingId);
+      appendMessage(data.reply || "Sorry, something went wrong.", "bot");
+    } catch (err) {
+      removeTyping(typingId);
+      appendMessage("Connection error. Please try again.", "bot");
+    }
+
+    sendBtn.disabled = false;
+    input.disabled = false;
+    input.focus();
+  }
+
+  function appendMessage(text, sender) {
+    const div = document.createElement("div");
+    div.className = "chat-msg " + sender + "-msg";
+
+    const avatar = sender === "bot"
+      ? '<div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>'
+      : '<div class="msg-avatar user-avatar"><i class="fa-solid fa-user"></i></div>';
+
+    // Convert markdown-like formatting
+    const formatted = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+
+    div.innerHTML = avatar + '<div class="msg-bubble">' + formatted + '</div>';
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function showTyping() {
+    const id = "typing-" + Date.now();
+    const div = document.createElement("div");
+    div.className = "chat-msg bot-msg";
+    div.id = id;
+    div.innerHTML = '<div class="msg-avatar"><i class="fa-solid fa-robot"></i></div><div class="msg-bubble typing-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return id;
+  }
+
+  function removeTyping(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+})();
+</script>

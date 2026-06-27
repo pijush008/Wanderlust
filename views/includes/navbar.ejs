@@ -21,23 +21,41 @@
         <li class="nav-item">
           <a class="nav-link" href="/listings">Explore</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/filter"><i class="fa-solid fa-sliders me-1"></i>Filters</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/trips/plan"><i class="fa-solid fa-route me-1"></i>Plan Trip</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/ai/chat"><i class="fa-solid fa-robot me-1"></i>AI Assistant</a>
+        </li>
       </ul>
 
-      <!-- SEARCH BAR -->
-      <form class="d-flex ms-auto" role="search">
-        <input
-          class="form-control me-2 text-center"
-          type="search"
-          placeholder="Search destinations"
-          style="border-radius: 25px; font-size: 1rem; padding: 0.8rem 1rem; height: 45px;"
-        >
+      <!-- SMART SEARCH BAR -->
+      <form class="d-flex ms-auto search-form position-relative" role="search" action="/search" method="GET">
+        <div class="search-input-wrapper position-relative" style="width: 320px;">
+          <input
+            class="form-control search-input"
+            type="search"
+            name="q"
+            id="searchInput"
+            placeholder="Search destinations, places..."
+            autocomplete="off"
+            style="border-radius: 25px; font-size: 0.95rem; padding: 0.7rem 1rem; padding-right: 2.5rem; height: 45px;"
+          >
+          <!-- Autocomplete Dropdown -->
+          <div class="autocomplete-dropdown" id="autocompleteDropdown">
+            <!-- Suggestions will be injected here -->
+          </div>
+        </div>
 
         <button
-          class="btn btn-danger d-flex align-items-center"
+          class="btn btn-danger d-flex align-items-center ms-2"
           style="border-radius: 25px; padding: 0.7rem 1.2rem;"
           type="submit"
         >
-          <i class="fa-solid fa-magnifying-glass me-2"></i>
+          <i class="fa-solid fa-magnifying-glass me-1"></i>
           Search
         </button>
       </form>
@@ -59,6 +77,12 @@
 
         <% if (user) { %>
           <li class="nav-item">
+            <a class="nav-link" href="/recommendations"><i class="fa-solid fa-sparkles me-1"></i><b>For You</b></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/bookings"><b>My Bookings</b></a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="/logout"><b>Log Out</b></a>
           </li>
         <% } %>
@@ -67,3 +91,171 @@
     </div>
   </div>
 </nav>
+
+<!-- Smart Search Script -->
+<script>
+(function() {
+  const searchInput = document.getElementById("searchInput");
+  const dropdown = document.getElementById("autocompleteDropdown");
+  let debounceTimer = null;
+  let currentIndex = -1;
+
+  // Debounced fetch suggestions
+  searchInput.addEventListener("input", function() {
+    const query = this.value.trim();
+    clearTimeout(debounceTimer);
+
+    if (query.length < 1) {
+      hideDropdown();
+      return;
+    }
+
+    debounceTimer = setTimeout(() => fetchSuggestions(query), 250);
+  });
+
+  // Show trending on focus (when empty)
+  searchInput.addEventListener("focus", function() {
+    if (this.value.trim().length === 0) {
+      fetchTrending();
+    }
+  });
+
+  // Hide dropdown on outside click
+  document.addEventListener("click", function(e) {
+    if (!e.target.closest(".search-form")) {
+      hideDropdown();
+    }
+  });
+
+  // Keyboard navigation
+  searchInput.addEventListener("keydown", function(e) {
+    const items = dropdown.querySelectorAll(".autocomplete-item");
+    if (!items.length) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      currentIndex = Math.min(currentIndex + 1, items.length - 1);
+      highlightItem(items);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      currentIndex = Math.max(currentIndex - 1, -1);
+      highlightItem(items);
+    } else if (e.key === "Enter" && currentIndex >= 0) {
+      e.preventDefault();
+      items[currentIndex].click();
+    } else if (e.key === "Escape") {
+      hideDropdown();
+    }
+  });
+
+  function highlightItem(items) {
+    items.forEach((item, i) => {
+      item.classList.toggle("active", i === currentIndex);
+    });
+  }
+
+  async function fetchSuggestions(query) {
+    try {
+      const res = await fetch("/search/autocomplete?q=" + encodeURIComponent(query));
+      const data = await res.json();
+      renderSuggestions(data.suggestions, query);
+    } catch (err) {
+      console.error("Autocomplete error:", err);
+    }
+  }
+
+  async function fetchTrending() {
+    try {
+      const res = await fetch("/search/trending");
+      const data = await res.json();
+      renderTrending(data.trending);
+    } catch (err) {
+      console.error("Trending error:", err);
+    }
+  }
+
+  function renderSuggestions(suggestions, query) {
+    if (!suggestions.length) {
+      dropdown.innerHTML = '<div class="autocomplete-empty">No suggestions found</div>';
+      showDropdown();
+      return;
+    }
+
+    currentIndex = -1;
+    let html = '<div class="autocomplete-header">Suggestions</div>';
+
+    suggestions.forEach((s) => {
+      const highlighted = highlightMatch(s.text, query);
+      const subtext = s.subtext ? '<span class="autocomplete-subtext">' + s.subtext + '</span>' : '';
+      const count = s.count ? '<span class="autocomplete-count">' + s.count + ' listings</span>' : '';
+
+      html += '<div class="autocomplete-item" data-type="' + s.type + '" data-text="' + escapeHtml(s.text) + '" data-id="' + (s.id || '') + '">';
+      html += '  <i class="fa-solid ' + s.icon + ' autocomplete-icon"></i>';
+      html += '  <div class="autocomplete-text">' + highlighted + subtext + '</div>';
+      html += '  ' + count;
+      html += '</div>';
+    });
+
+    dropdown.innerHTML = html;
+    showDropdown();
+    bindItemClicks();
+  }
+
+  function renderTrending(trending) {
+    if (!trending.length) return;
+
+    currentIndex = -1;
+    let html = '<div class="autocomplete-header"><i class="fa-solid fa-fire me-1"></i>Trending Destinations</div>';
+
+    trending.forEach((t) => {
+      html += '<div class="autocomplete-item" data-type="location" data-text="' + escapeHtml(t._id) + '">';
+      html += '  <i class="fa-solid fa-fire-flame-curved autocomplete-icon" style="color: #ff5a5f;"></i>';
+      html += '  <div class="autocomplete-text">' + escapeHtml(t._id) + '<span class="autocomplete-subtext">' + t.country + '</span></div>';
+      html += '  <span class="autocomplete-count">' + t.count + '</span>';
+      html += '</div>';
+    });
+
+    dropdown.innerHTML = html;
+    showDropdown();
+    bindItemClicks();
+  }
+
+  function bindItemClicks() {
+    dropdown.querySelectorAll(".autocomplete-item").forEach((item) => {
+      item.addEventListener("click", function() {
+        const type = this.dataset.type;
+        const text = this.dataset.text;
+        const id = this.dataset.id;
+
+        if (type === "listing" && id) {
+          window.location.href = "/listings/" + id;
+        } else {
+          searchInput.value = text;
+          hideDropdown();
+          searchInput.closest("form").submit();
+        }
+      });
+    });
+  }
+
+  function highlightMatch(text, query) {
+    const regex = new RegExp("(" + query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+    return escapeHtml(text).replace(regex, '<strong>$1</strong>');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function showDropdown() {
+    dropdown.style.display = "block";
+  }
+
+  function hideDropdown() {
+    dropdown.style.display = "none";
+    currentIndex = -1;
+  }
+})();
+</script>

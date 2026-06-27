@@ -1,0 +1,191 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="trip-result-page">
+  <div class="row">
+    <div class="col-md-10 offset-md-1">
+
+      <!-- Trip Summary Header -->
+      <div class="trip-summary-header text-center mt-3 mb-4">
+        <h2>
+          <i class="fa-solid fa-route me-2"></i>
+          <%= plan.summary.from %> → <%= plan.summary.to %>
+        </h2>
+        <div class="trip-meta">
+          <span class="trip-meta-item"><i class="fa-solid fa-calendar"></i> <%= plan.summary.days %> Days</span>
+          <span class="trip-meta-item"><i class="fa-solid fa-users"></i> <%= plan.summary.travelers %> Travelers</span>
+          <span class="trip-meta-item"><i class="fa-solid fa-tag"></i> <%= plan.summary.tripType %></span>
+          <span class="trip-meta-item <%= plan.summary.withinBudget ? 'text-success' : 'text-danger' %>">
+            <i class="fa-solid fa-indian-rupee-sign"></i>
+            ₹<%= Number(plan.summary.totalEstimated).toLocaleString("en-IN") %> / ₹<%= Number(plan.summary.budget).toLocaleString("en-IN") %>
+          </span>
+        </div>
+        <% if (plan.summary.withinBudget) { %>
+          <span class="badge bg-success mt-2">✓ Within Budget — Save ₹<%= Number(plan.summary.savings).toLocaleString("en-IN") %></span>
+        <% } else { %>
+          <span class="badge bg-warning text-dark mt-2">⚠️ Over budget by ₹<%= Number(Math.abs(plan.summary.savings)).toLocaleString("en-IN") %></span>
+        <% } %>
+      </div>
+
+      <!-- Travel Section -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5><i class="fa-solid fa-plane me-2"></i>Getting There</h5>
+          <% if (plan.travel.distance) { %>
+            <p class="text-muted">Distance: ~<%= plan.travel.distance %> km</p>
+          <% } %>
+
+          <div class="row g-2 mt-2">
+            <% plan.travel.allModes.forEach(mode => { %>
+              <div class="col-md-4">
+                <div class="travel-mode-card <%= plan.travel.recommended && plan.travel.recommended.mode === mode.mode ? 'recommended' : '' %>">
+                  <% if (plan.travel.recommended && plan.travel.recommended.mode === mode.mode) { %>
+                    <span class="badge bg-success mb-1">Recommended</span>
+                  <% } %>
+                  <div class="travel-mode-icon">
+                    <i class="fa-solid fa-<%= mode.mode === 'flight' ? 'plane' : mode.mode === 'train' ? 'train' : mode.mode === 'bus' ? 'bus' : 'car' %>"></i>
+                  </div>
+                  <strong><%= mode.mode.charAt(0).toUpperCase() + mode.mode.slice(1) %></strong>
+                  <div class="text-muted small"><%= mode.duration %></div>
+                  <div class="fw-bold">₹<%= Number(mode.cost).toLocaleString("en-IN") %>/person</div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+          <% if (plan.travel.roundTripCost) { %>
+            <p class="mt-2 fw-bold">Round trip cost: ₹<%= Number(plan.travel.roundTripCost).toLocaleString("en-IN") %> (for <%= plan.summary.travelers %> travelers)</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Budget Breakdown -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5><i class="fa-solid fa-pie-chart me-2"></i>Budget Breakdown</h5>
+          <div class="row g-3 mt-2">
+            <div class="col-4 col-md-2 text-center">
+              <div class="budget-circle" style="background: #e74c3c20; border-color: #e74c3c;">
+                <strong>₹<%= (plan.budgetBreakdown.travel / 1000).toFixed(1) %>k</strong>
+              </div>
+              <small>Travel</small>
+            </div>
+            <div class="col-4 col-md-2 text-center">
+              <div class="budget-circle" style="background: #3498db20; border-color: #3498db;">
+                <strong>₹<%= (plan.budgetBreakdown.stay / 1000).toFixed(1) %>k</strong>
+              </div>
+              <small>Stay</small>
+            </div>
+            <div class="col-4 col-md-2 text-center">
+              <div class="budget-circle" style="background: #27ae6020; border-color: #27ae60;">
+                <strong>₹<%= (plan.budgetBreakdown.food / 1000).toFixed(1) %>k</strong>
+              </div>
+              <small>Food</small>
+            </div>
+            <div class="col-4 col-md-2 text-center">
+              <div class="budget-circle" style="background: #f39c1220; border-color: #f39c12;">
+                <strong>₹<%= (plan.budgetBreakdown.activities / 1000).toFixed(1) %>k</strong>
+              </div>
+              <small>Activities</small>
+            </div>
+            <div class="col-4 col-md-2 text-center">
+              <div class="budget-circle" style="background: #9b59b620; border-color: #9b59b6;">
+                <strong>₹<%= (plan.budgetBreakdown.misc / 1000).toFixed(1) %>k</strong>
+              </div>
+              <small>Misc</small>
+            </div>
+            <div class="col-4 col-md-2 text-center">
+              <div class="budget-circle" style="background: #1abc9c20; border-color: #1abc9c;">
+                <strong>₹<%= (plan.budgetBreakdown.perDay / 1000).toFixed(1) %>k</strong>
+              </div>
+              <small>Per Day</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommended Stays -->
+      <% if (plan.stays.length > 0) { %>
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5><i class="fa-solid fa-bed me-2"></i>Recommended Stays</h5>
+            <div class="row g-3 mt-2">
+              <% plan.stays.forEach((stay, i) => { %>
+                <div class="col-md-6">
+                  <div class="stay-card <%= i === 0 ? 'stay-top-pick' : '' %>">
+                    <% if (i === 0) { %><span class="badge bg-danger mb-1">Top Pick</span><% } %>
+                    <h6><%= stay.title %></h6>
+                    <small class="text-muted"><i class="fa-solid fa-location-dot"></i> <%= stay.location %></small>
+                    <div class="mt-1">
+                      <strong>₹<%= Number(stay.dynamicPrice).toLocaleString("en-IN") %></strong>/night
+                      · Total: ₹<%= Number(stay.totalCost).toLocaleString("en-IN") %>
+                    </div>
+                    <div class="mt-1">
+                      <% if (stay.withinBudget) { %><span class="badge bg-success">Within Budget</span><% } %>
+                      <% if (stay.instantBook) { %><span class="badge bg-info">Instant Book</span><% } %>
+                      <% if (stay.familyFriendly) { %><span class="badge bg-warning text-dark">Family</span><% } %>
+                    </div>
+                    <a href="/listings/<%= stay._id %>" class="btn btn-sm btn-outline-dark mt-2">View & Book</a>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- Day-wise Itinerary -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5><i class="fa-solid fa-calendar-check me-2"></i>Day-wise Itinerary</h5>
+          <% plan.itinerary.forEach(day => { %>
+            <div class="itinerary-day mt-3">
+              <h6 class="itinerary-day-title">
+                <span class="day-badge">Day <%= day.day %></span>
+                <%= day.title %>
+                <small class="text-muted float-end">~₹<%= Number(day.estimatedCost).toLocaleString("en-IN") %></small>
+              </h6>
+              <div class="itinerary-timeline">
+                <% day.activities.forEach(act => { %>
+                  <div class="timeline-item">
+                    <span class="timeline-time"><%= act.time %></span>
+                    <div class="timeline-content">
+                      <strong><%= act.name %></strong>
+                      <div class="small text-muted">
+                        <span class="me-2"><i class="fa-solid fa-clock"></i> <%= act.duration %></span>
+                        <% if (act.cost > 0) { %><span>₹<%= act.cost %></span><% } else { %><span class="text-success">Free</span><% } %>
+                      </div>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <% if (plan.tips.length > 0) { %>
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5><i class="fa-solid fa-lightbulb me-2"></i>Pro Tips</h5>
+            <ul class="list-unstyled mt-2">
+              <% plan.tips.forEach(tip => { %>
+                <li class="mb-2"><%= tip %></li>
+              <% }) %>
+            </ul>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- Actions -->
+      <div class="d-flex gap-2 mb-4">
+        <a href="/trips/plan" class="btn btn-outline-dark">
+          <i class="fa-solid fa-arrow-left me-1"></i> Plan Another Trip
+        </a>
+        <a href="/listings" class="btn btn-outline-danger">
+          <i class="fa-solid fa-compass me-1"></i> Browse All Listings
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>

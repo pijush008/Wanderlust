@@ -4,15 +4,42 @@ const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
 const mapToken=process.env.MAP_TOKEN
 const geocodingClient=mbxGeocoding({accessToken:mapToken})
 
-
-
-
+const { getQuickPrice } = require("../utils/pricingEngine");
+const { getCardImage, getShowImage } = require("../utils/imageOptimizer");
+const { cache, TTL, listingIndexKey, listingShowKey, invalidateListingCache } = require("../utils/cache");
+const { trackActivity, classifyPrice, findSimilarListings } = require("../utils/recommendationEngine");
 
 
 // INDEX
 module.exports.index = async (req, res) => {
+  // Check cache for listing index
+  const cacheKey = listingIndexKey();
+  const cached = await cache.get(cacheKey);
+  
+  if (cached) {
+    return res.render("listings/index.ejs", { allListings: cached });
+  }
+
   const allListings = await Listing.find({});
-  res.render("listings/index.ejs", { allListings });
+  
+  // Attach dynamic pricing + optimized images to each listing
+  const listingsWithPricing = allListings.map((listing) => {
+    const pricing = getQuickPrice(listing.price, listing.location);
+    const optimizedImage = getCardImage(listing.image?.url || "");
+    return {
+      ...listing.toObject(),
+      dynamicPrice: pricing.finalPrice,
+      priceMultiplier: pricing.multiplier,
+      isSurge: pricing.isSurge,
+      isDiscount: pricing.isDiscount,
+      optimizedImage,
+    };
+  });
+
+  // Cache the processed listings
+  await cache.set(cacheKey, listingsWithPricing, TTL.LISTING_INDEX);
+
+  res.render("listings/index.ejs", { allListings: listingsWithPricing });
 };
 
 // NEW FORM
@@ -38,7 +65,22 @@ module.exports.showListing = async (req, res) => {
 
   res.render("listings/show.ejs", { listing,
     mapToken:process.env.MAP_TOKEN,
+    optimizedImage: getShowImage(listing.image?.url || ""),
    });
+
+  // Track view asynchronously (non-blocking)
+  if (req.user) {
+    trackActivity(req.user._id, "view", {
+      listingId: listing._id,
+      listingData: {
+        location: listing.location,
+        country: listing.country,
+        category: listing.category || "homes",
+        priceRange: classifyPrice(listing.price),
+        price: listing.price,
+      },
+    }).catch(() => {}); // Silent fail
+  }
 };
 
 
@@ -81,6 +123,9 @@ module.exports.createListing = async (req, res) => {
   // Save
   const savedListing = await newListing.save();
 
+  // Invalidate cache
+  await invalidateListingCache(savedListing._id.toString());
+
   req.flash("success", "New listing created successfully!");
   res.redirect(`/listings/${savedListing._id}`);
 };
@@ -118,6 +163,9 @@ module.exports.updateListing = async (req, res) => {
     await listing.save();
   }
 
+  // Invalidate cache
+  await invalidateListingCache(id);
+
   req.flash("success", "Listing updated successfully");
   res.redirect(`/listings/${id}`);
 };
@@ -127,6 +175,9 @@ module.exports.destroyListing = async (req, res) => {
   const { id } = req.params;
 
   await Listing.findByIdAndDelete(id);
+
+  // Invalidate cache
+  await invalidateListingCache(id);
 
   req.flash("success", "Listing deleted successfully!");
   res.redirect("/listings");

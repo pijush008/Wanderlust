@@ -1,0 +1,250 @@
+<% layout("layouts/boilerplate") %>
+
+<div class="filter-page">
+  <!-- Filter Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fa-solid fa-sliders me-2"></i>Advanced Filters</h4>
+    <span class="text-muted"><%= results.length %> listing<%= results.length !== 1 ? 's' : '' %> found</span>
+  </div>
+
+  <div class="row">
+    <!-- FILTER SIDEBAR -->
+    <div class="col-md-3">
+      <form action="/filter" method="GET" id="filterForm" class="filter-sidebar">
+
+        <!-- Search Query -->
+        <div class="filter-group">
+          <label class="filter-label">Search</label>
+          <input type="text" name="q" class="form-control form-control-sm" placeholder="Search..." value="<%= filters.q || '' %>">
+        </div>
+
+        <!-- Price Range -->
+        <div class="filter-group">
+          <label class="filter-label">Price Range (₹/night)</label>
+          <div class="d-flex gap-2">
+            <input type="number" name="minPrice" class="form-control form-control-sm" placeholder="Min" value="<%= filters.minPrice || '' %>">
+            <input type="number" name="maxPrice" class="form-control form-control-sm" placeholder="Max" value="<%= filters.maxPrice || '' %>">
+          </div>
+          <!-- Price Heatmap Mini -->
+          <div class="price-heatmap-mini mt-2" id="priceHeatmap"></div>
+        </div>
+
+        <!-- Category -->
+        <div class="filter-group">
+          <label class="filter-label">Category</label>
+          <select name="category" class="form-select form-select-sm">
+            <option value="all">All Categories</option>
+            <% filterOptions.categories.forEach(cat => { %>
+              <option value="<%= cat %>" <%= filters.category === cat ? 'selected' : '' %>><%= cat.replace('_', ' ') %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <!-- Cancellation Policy -->
+        <div class="filter-group">
+          <label class="filter-label"><i class="fa-solid fa-shield-halved me-1"></i>Cancellation</label>
+          <select name="cancellation" class="form-select form-select-sm">
+            <option value="all">Any Policy</option>
+            <option value="flexible" <%= filters.cancellation === 'flexible' ? 'selected' : '' %>>🟢 Flexible (free cancel)</option>
+            <option value="moderate" <%= filters.cancellation === 'moderate' ? 'selected' : '' %>>🟡 Moderate (5 days)</option>
+            <option value="strict" <%= filters.cancellation === 'strict' ? 'selected' : '' %>>🔴 Strict (non-refundable)</option>
+          </select>
+        </div>
+
+        <!-- Instant Book -->
+        <div class="filter-group">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="instantBook" value="true" id="instantBookCheck"
+              <%= filters.instantBook === 'true' ? 'checked' : '' %>>
+            <label class="form-check-label" for="instantBookCheck">
+              <i class="fa-solid fa-bolt me-1" style="color: #ff5a5f;"></i>Instant Book
+            </label>
+          </div>
+          <small class="text-muted">Book without host approval</small>
+        </div>
+
+        <!-- Family Friendly -->
+        <div class="filter-group">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="familyFriendly" value="true" id="familyCheck"
+              <%= filters.familyFriendly === 'true' ? 'checked' : '' %>>
+            <label class="form-check-label" for="familyCheck">
+              <i class="fa-solid fa-children me-1" style="color: #27ae60;"></i>Family-Friendly
+            </label>
+          </div>
+          <small class="text-muted">Child-safe, cribs, high chairs</small>
+        </div>
+
+        <!-- Pet Friendly -->
+        <div class="filter-group">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="petFriendly" value="true" id="petCheck"
+              <%= filters.petFriendly === 'true' ? 'checked' : '' %>>
+            <label class="form-check-label" for="petCheck">
+              <i class="fa-solid fa-paw me-1" style="color: #8e44ad;"></i>Pet-Friendly
+            </label>
+          </div>
+          <small class="text-muted">Pets allowed, yard, pet beds</small>
+        </div>
+
+        <!-- Min Guests -->
+        <div class="filter-group">
+          <label class="filter-label">Min Guests</label>
+          <select name="minGuests" class="form-select form-select-sm">
+            <option value="">Any</option>
+            <option value="2" <%= filters.minGuests === '2' ? 'selected' : '' %>>2+</option>
+            <option value="4" <%= filters.minGuests === '4' ? 'selected' : '' %>>4+</option>
+            <option value="6" <%= filters.minGuests === '6' ? 'selected' : '' %>>6+</option>
+            <option value="8" <%= filters.minGuests === '8' ? 'selected' : '' %>>8+</option>
+          </select>
+        </div>
+
+        <!-- Sort -->
+        <div class="filter-group">
+          <label class="filter-label">Sort By</label>
+          <select name="sortBy" class="form-select form-select-sm">
+            <% filterOptions.sortOptions.forEach(opt => { %>
+              <option value="<%= opt.value %>" <%= filters.sortBy === opt.value ? 'selected' : '' %>><%= opt.label %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <!-- Buttons -->
+        <div class="filter-group">
+          <button type="submit" class="btn btn-danger btn-sm w-100 mb-2">
+            <i class="fa-solid fa-filter me-1"></i>Apply Filters
+          </button>
+          <a href="/filter" class="btn btn-outline-secondary btn-sm w-100">
+            <i class="fa-solid fa-rotate-left me-1"></i>Clear All
+          </a>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="col-md-9">
+      <!-- Active Filters Tags -->
+      <% if (meta.totalFilters > 0) { %>
+        <div class="active-filters mb-3">
+          <% meta.filtersApplied.forEach(f => { %>
+            <span class="filter-tag"><%= f.replace('_', ' ') %></span>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <!-- Price Heatmap Bar -->
+      <div class="price-heatmap-bar mb-3" id="heatmapBar"></div>
+
+      <% if (results.length === 0) { %>
+        <div class="text-center py-5">
+          <i class="fa-solid fa-filter-circle-xmark" style="font-size: 3rem; color: #ccc;"></i>
+          <h5 class="mt-3">No listings match your filters</h5>
+          <p class="text-muted">Try adjusting your filters or <a href="/filter">clear all</a></p>
+        </div>
+      <% } else { %>
+        <div class="row row-cols-lg-3 row-cols-md-2 row-cols-sm-1 g-3">
+          <% for (let listing of results) { %>
+            <div class="col">
+              <a href="/listings/<%= listing._id %>" class="text-decoration-none text-dark">
+                <div class="card listing-card filter-result-card">
+                  <!-- Badges -->
+                  <div class="filter-badges">
+                    <% if (listing.instantBook) { %>
+                      <span class="filter-badge-instant"><i class="fa-solid fa-bolt"></i></span>
+                    <% } %>
+                    <% if (listing.familyScore >= 50) { %>
+                      <span class="filter-badge-family"><i class="fa-solid fa-children"></i></span>
+                    <% } %>
+                    <% if (listing.petScore >= 40) { %>
+                      <span class="filter-badge-pet"><i class="fa-solid fa-paw"></i></span>
+                    <% } %>
+                    <% if (listing.isSurge) { %>
+                      <span class="price-badge surge-badge"><i class="fa-solid fa-bolt"></i> Surge</span>
+                    <% } else if (listing.isDiscount) { %>
+                      <span class="price-badge discount-badge"><i class="fa-solid fa-tag"></i> Deal</span>
+                    <% } %>
+                  </div>
+
+                  <img
+                    src="<%= listing.optimizedImage ? listing.optimizedImage.src : (listing.image?.url || '') %>"
+                    class="card-img-top"
+                    alt="<%= listing.title %>"
+                    style="height: 18rem; object-fit: cover;"
+                    loading="lazy"
+                    onerror="this.src='https://positiwise.com/blog/wp-content/uploads/2022/01/javascript-framework-2.jpg'"
+                  >
+
+                  <div class="card-body">
+                    <strong class="d-block"><%= listing.title %></strong>
+                    <small class="text-muted">
+                      <i class="fa-solid fa-location-dot"></i> <%= listing.location %>
+                    </small>
+
+                    <!-- Price -->
+                    <div class="mt-1">
+                      <% if (listing.dynamicPrice !== listing.price) { %>
+                        <span class="dynamic-price">₹<%= Number(listing.dynamicPrice).toLocaleString("en-IN") %></span>
+                        <span class="base-price-strike">₹<%= Number(listing.price).toLocaleString("en-IN") %></span>
+                      <% } else { %>
+                        <strong>₹<%= Number(listing.price).toLocaleString("en-IN") %></strong>
+                      <% } %>
+                      <span class="text-muted">/night</span>
+                    </div>
+
+                    <!-- Scores -->
+                    <div class="filter-scores mt-2">
+                      <% if (listing.cancellationPolicy === 'flexible') { %>
+                        <span class="score-tag score-green">Free cancel</span>
+                      <% } %>
+                      <% if (listing.familyScore >= 50) { %>
+                        <span class="score-tag score-blue">Family <%= listing.familyScore %>%</span>
+                      <% } %>
+                      <% if (listing.petScore >= 40) { %>
+                        <span class="score-tag score-purple">Pet <%= listing.petScore %>%</span>
+                      <% } %>
+                      <% if (listing.maxGuests) { %>
+                        <span class="score-tag score-gray"><%= listing.maxGuests %> guests</span>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Price Heatmap Script -->
+<script>
+(function() {
+  fetch("/filter/api/heatmap")
+    .then(r => r.json())
+    .then(data => {
+      const bar = document.getElementById("heatmapBar");
+      if (!bar || !data.heatmap) return;
+
+      const colors = {
+        very_high: "#e74c3c",
+        high: "#e67e22",
+        medium: "#f1c40f",
+        low: "#27ae60",
+        very_low: "#3498db",
+      };
+
+      let html = '<div class="d-flex flex-wrap gap-1">';
+      data.heatmap.slice(0, 12).forEach(loc => {
+        html += '<div class="heatmap-chip" style="background:' + colors[loc.heatLevel] + '20; border: 1px solid ' + colors[loc.heatLevel] + ';">';
+        html += '<span style="color:' + colors[loc.heatLevel] + '; font-weight:600;">' + loc.location + '</span>';
+        html += '<small> ₹' + loc.avgPrice.toLocaleString("en-IN") + '/avg</small>';
+        html += '</div>';
+      });
+      html += '</div>';
+      bar.innerHTML = html;
+    })
+    .catch(() => {});
+})();
+</script>
