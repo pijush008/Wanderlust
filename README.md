@@ -1,6 +1,14 @@
 # 🌍 Wanderlust — AI-Powered Travel Booking Platform
 
+[![CI Status](https://github.com/pijush008/Wanderlust/actions/workflows/ci.yml/badge.svg)](https://github.com/pijush008/Wanderlust/actions/workflows/ci.yml)
+[![Vercel](https://img.shields.io/badge/Frontend-Vercel-black?logo=vercel)](https://wanderlust-three-sandy.vercel.app)
+[![Render](https://img.shields.io/badge/Backend-Render-purple?logo=render)](https://wanderlust-quyn.onrender.com)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB%20Atlas-green?logo=mongodb)](https://cloud.mongodb.com)
+[![License](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
+
 A production-grade travel booking platform (Airbnb clone) built with React + Express, featuring AI chatbot, dynamic pricing, real-time updates, and full payment integration.
+
+**🔗 Live Demo**: https://wanderlust-three-sandy.vercel.app
 
 ## 🚀 Features
 
